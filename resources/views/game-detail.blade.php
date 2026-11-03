@@ -45,7 +45,7 @@
               </li>
               <li>
                 <strong>Etat:</strong>
-                {{ $game->status }}
+                {{ $game->status->label() }}
               </li>
               {{-- US2 : plateformes du jeu --}}
               <li>

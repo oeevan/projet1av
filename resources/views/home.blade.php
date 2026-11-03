@@ -37,7 +37,7 @@
               <p class="wishflix-hero__details">{{ $featured->release_year }} | {{ $featured->rating }}/5 | {{ $featured->playtime_hours }}h de jeu</p>
 
               <div class="wishflix-hero__actions">
-                <a class="btn btn-primary btn-lg" href="{{ route('games.show', $featured->id) }}"
+                <a class="btn btn-primary btn-lg" href="{{ route('games.show', $featured) }}"
                   >Voir la fiche</a
                 >
                 <button class="btn btn-outline btn-lg">
@@ -136,7 +136,7 @@
                 <div class="card-body game-card__body">
                   <div class="game-card__badges">
                     <span class="badge badge-secondary">{{ $game->category->name }}</span>
-                    <span class="badge badge-success">Disponible</span>
+                    <span class="badge badge-success">{{ $game->status->label() }}</span>
                   </div>
 
                   <h3 class="card-title game-card__title">{{ $game->title }}</h3>
@@ -154,7 +154,7 @@
                   <div class="card-actions game-card__actions">
                     <a
                       class="btn btn-sm btn-ghost"
-                      href="{{ route('games.show', $game->id) }}"
+                      href="{{ route('games.show', $game) }}"
                       aria-label="Voir les details de {{ $game->title }}"
                     >
                       Details

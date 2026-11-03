@@ -269,3 +269,27 @@
 **18.** Avec 20 jeux : 1 requête (`Game::all()`) + 1 par jeu (`category`) = **21 requêtes** (vérifié avec `DB::getQueryLog()` → 21). C'est le problème **N+1**.
 
 **19.** Résumé : la vue lit `$game->category` ; la propriété n'existe pas, donc PHP appelle `Model::__get`, qui appelle `getAttribute`. Ce n'est pas une colonne mais une relation, donc on passe dans `getRelationValue` puis `getRelationshipFromMethod`, qui appelle notre méthode `category()` (un `belongsTo`). `getResults()` exécute la requête `SELECT * FROM categories WHERE id = ?`, et `setRelation` range le résultat dans `$this->relations`. Aux lectures suivantes, la catégorie est lue en mémoire, sans nouvelle requête.
+
+## Bonus Séance 3
+
+### Bonus 1 — Le slug dans l'URL
+
+- Migration `add_slug_to_games_table` (`--table=games`) : `string('slug')->unique()` dans `up()`, `dropColumn('slug')` dans `down()`.
+- Slugs générés avec `Str::slug($title)`, dans `GameSeeder` et dans `GameFactory`. Exemple : « The Witcher 3 » → `the-witcher-3`.
+- Route : `/game/{game:slug}`. Le `:slug` dit à Laravel de chercher le jeu par sa colonne `slug` au lieu de l'`id`.
+- Contrôleur : `show(Game $game)` reçoit le jeu déjà trouvé. C'est le **route model binding** : plus besoin de `findOrFail`, la 404 est automatique.
+- Vues : `route('games.show', $game)` génère `/game/the-witcher-3` tout seul.
+- Tests :
+  - `/game/the-witcher-3` → 200
+  - `/game/inconnu` → 404
+  - `/game/1` → 404, car l'id n'est plus accepté.
+- `whereNumber('id')` est retiré, puisque l'URL contient maintenant du texte.
+
+### Bonus 2 — `status` en enum PHP
+
+- `app/Enums/GameStatus.php` : `enum GameStatus: string` avec les cas `Released`, `Upcoming` et `EarlyAccess`, plus une méthode `label()` qui renvoie Disponible, À venir ou Accès anticipé.
+- Modèle : `'status' => GameStatus::class` dans `casts()`. En base, la valeur reste une chaîne (`released`).
+- Factory : `fake()->randomElement(GameStatus::cases())`. Seeder : `GameStatus::Released`.
+- Vues : `{{ $game->status->label() }}` sur la fiche et sur les cartes de l'accueil.
+- Vérifié avec tinker : `get_class(Game::first()->status)` → `App\Enums\GameStatus`, et `->value` → `released`.
+- Intérêt : seules 3 valeurs sont possibles, sans faute de frappe, et l'éditeur propose l'autocomplétion.

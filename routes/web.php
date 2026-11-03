@@ -5,8 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [GameController::class, 'index'])->name('home');
 
-Route::get('/game/{id}', [GameController::class, 'show'])
-    ->whereNumber('id')
+Route::get('/game/{game:slug}', [GameController::class, 'show'])
     ->name('games.show');
 
 Route::get('/wishlist', function () {

@@ -2,10 +2,12 @@
 
 namespace Database\Seeders;
 
+use App\Enums\GameStatus;
 use App\Models\Category;
 use App\Models\Game;
 use App\Models\Platform;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class GameSeeder extends Seeder
 {
@@ -79,13 +81,14 @@ class GameSeeder extends Seeder
         foreach ($games as $index => $data) {
             $game = Game::create([
                 'title' => $data['title'],
+                'slug' => Str::slug($data['title']),
                 'synopsis' => $data['synopsis'],
                 'release_year' => $data['release_year'],
                 'rating' => $data['rating'],
                 'playtime_hours' => $data['playtime_hours'],
                 'cover_url' => 'https://via.assets.so/game.png?id='.($index + 1).'&q=95&w=300&h=450&fit=cover',
                 'featured' => $data['featured'] ?? false,
-                'status' => 'released',
+                'status' => GameStatus::Released,
                 'category_id' => $categories[$data['category']],
             ]);
 

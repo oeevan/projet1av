@@ -48,7 +48,7 @@
                 </p>
 
                 <div class="card-actions game-card__actions">
-                  <a class="btn btn-sm btn-ghost" href="{{ route('games.show', 2) }}">
+                  <a class="btn btn-sm btn-ghost" href="{{ route('games.show', 'elden-ring') }}">
                     Details
                   </a>
                   <button class="btn btn-sm btn-secondary">Retirer</button>
@@ -91,7 +91,7 @@
                 </p>
 
                 <div class="card-actions game-card__actions">
-                  <a class="btn btn-sm btn-ghost" href="{{ route('games.show', 4) }}">
+                  <a class="btn btn-sm btn-ghost" href="{{ route('games.show', 'red-dead-redemption-2') }}">
                     Details
                   </a>
                   <button class="btn btn-sm btn-secondary">Retirer</button>
@@ -132,7 +132,7 @@
                 </p>
 
                 <div class="card-actions game-card__actions">
-                  <a class="btn btn-sm btn-ghost" href="{{ route('games.show', 5) }}">
+                  <a class="btn btn-sm btn-ghost" href="{{ route('games.show', 'god-of-war') }}">
                     Details
                   </a>
                   <button class="btn btn-sm btn-secondary">Retirer</button>

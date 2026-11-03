@@ -18,8 +18,9 @@ class GameController extends Controller
         ]);
     }
 
-    public function show(int $id)
+    // Bonus 1 : route model binding, Laravel trouve le jeu par son slug (404 sinon)
+    public function show(Game $game)
     {
-        return view('game-detail', ['game' => Game::findOrFail($id)]);
+        return view('game-detail', ['game' => $game]);
     }
 }

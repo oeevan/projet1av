@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\GameStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,6 +14,7 @@ class Game extends Model
 
     protected $fillable = [
         'title',
+        'slug',
         'synopsis',
         'release_year',
         'rating',
@@ -27,6 +29,7 @@ class Game extends Model
     {
         return [
             'featured' => 'boolean',
+            'status' => GameStatus::class,
         ];
     }
 
