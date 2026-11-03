@@ -15,11 +15,16 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
         User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
+        ]);
+
+        // Ce qui est référencé (catégories, plateformes) avant ce qui référence (jeux)
+        $this->call([
+            CategorySeeder::class,
+            PlatformSeeder::class,
+            GameSeeder::class,
         ]);
     }
 }
