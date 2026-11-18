@@ -12,38 +12,39 @@
 ## 🚀 Installation (3 commandes)
 
 > **Seul prérequis : Docker Desktop lancé.** Pas besoin de PHP, Composer ni Node sur ta machine : tout tourne dans Docker.
-> Les commandes sont **les mêmes sur Mac, Linux et Windows** (PowerShell ou le terminal de VS Code).
+> **Windows** : travaille dans un terminal **WSL (Ubuntu)**, avec le projet cloné dans `~/` (pas dans `/mnt/c/...`). Les commandes sont ensuite les mêmes que sur Mac et Linux.
 
 Depuis le dossier du projet :
 
 ```bash
-# 1. Installe les dépendances PHP et crée le .env
-docker run --rm -v "${PWD}:/app" -w /app composer:2 sh -c "composer install --ignore-platform-reqs && cp -n .env.example .env"
+# 1. Installe les dépendances PHP (avec TON utilisateur, pas root) et crée le .env
+docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd):/app" -w /app composer:2 sh -c "composer install --ignore-platform-reqs && cp -n .env.example .env"
 
 # 2. Démarre PHP + MariaDB (la 1re fois : ~5 min, le temps de construire l'image)
-docker compose up -d --wait
+./vendor/bin/sail up -d --wait
 
 # 3. Prépare tout : clé, base remplie (20 jeux), CSS compilés
-docker compose exec -u sail laravel.test composer setup
+./vendor/bin/sail composer setup
 ```
 
 👉 Ouvre **http://localhost**
 
 | Ensuite | Commande |
 |---|---|
-| Arrêter | `docker compose down` |
-| Relancer | `docker compose up -d` |
-| Remettre la base à zéro | `docker compose exec laravel.test php artisan migrate:fresh --seed` |
+| Arrêter | `./vendor/bin/sail down` |
+| Relancer | `./vendor/bin/sail up -d` |
+| Remettre la base à zéro | `./vendor/bin/sail artisan migrate:fresh --seed` |
+| CSS rechargé en direct (dev) | `./vendor/bin/sail npm run dev` (laisser ouvert) |
 
-> 💡 **Le port 80 ou 3306 est déjà pris ?** Ajoute `APP_PORT=8080` ou `FORWARD_DB_PORT=3307` dans `.env`, puis relance l'étape 2 (le site sera sur http://localhost:8080).
+> 💡 Raccourci : `alias sail='./vendor/bin/sail'`, puis `sail up -d`, `sail artisan ...`
 
-### Pour développer (CSS rechargé en direct)
+### En cas de souci
 
-```bash
-docker compose exec -u sail laravel.test npm run dev   # laisser ouvert
-```
-
-> Sur Mac/Linux, le raccourci de Sail marche aussi : `./vendor/bin/sail up -d`, `./vendor/bin/sail artisan ...`, `./vendor/bin/sail npm run dev`.
+| Message | Solution |
+|---|---|
+| `port is already allocated` (80 ou 3306) | Un autre projet tourne : `docker ps` puis `docker stop <nom>`. Ou ajoute `APP_PORT=8080` / `FORWARD_DB_PORT=3307` dans `.env` (site sur http://localhost:8080). |
+| `Permission denied` dans `vendor/` | `vendor/` a été créé par root : `sudo chown -R $USER:$USER .` puis relance l'étape 3. |
+| `The "WWWUSER" variable is not set` | Passe par `./vendor/bin/sail` (il remplit `WWWUSER`/`WWWGROUP` tout seul) plutôt que `docker compose`. |
 
 ---
 
@@ -114,15 +115,15 @@ FICHE-COURS.md                          → fiche de révision du cours
 
 ## 🛠️ Commandes utiles
 
-Préfixe : `docker compose exec laravel.test` (ou `./vendor/bin/sail` sur Mac/Linux).
+Préfixe : `./vendor/bin/sail` (ou `sail` avec l'alias).
 
 | Commande | Ça fait quoi |
 |---|---|
-| `php artisan migrate:fresh --seed` | remet la base à zéro avec des données |
-| `php artisan route:list` | liste les routes |
-| `php artisan tinker` | console PHP pour tester |
-| `php artisan test` | lance les tests |
-| `php artisan view:clear` | vide le cache des vues |
+| `artisan migrate:fresh --seed` | remet la base à zéro avec des données |
+| `artisan route:list` | liste les routes |
+| `artisan tinker` | console PHP pour tester |
+| `artisan test` | lance les tests |
+| `artisan view:clear` | vide le cache des vues |
 
 ---
 
