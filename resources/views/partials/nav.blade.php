@@ -11,10 +11,10 @@
       class="navbar-center wishflix-shell__menu"
       aria-label="Liens principaux"
     >
-      <a class="wishflix-shell__link wishflix-shell__link--active" href="{{ route('home') }}">
+      <a @class(['wishflix-shell__link', 'wishflix-shell__link--active' => request()->routeIs('home')]) href="{{ route('home') }}">
         Accueil
       </a>
-      <a class="wishflix-shell__link" href="{{ route('wishlist') }}">
+      <a @class(['wishflix-shell__link', 'wishflix-shell__link--active' => request()->routeIs('wishlist')]) href="{{ route('wishlist') }}">
         Wishlist
         <span class="badge badge-secondary badge-sm">3</span>
       </a>
