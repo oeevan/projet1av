@@ -67,6 +67,33 @@
 - Si APP_NAME est absent du .env : Laravel utilise la valeur par défaut, le second argument, donc 'Laravel'
 - Méthode : ouvert config/app.php et lu la ligne 'name'
 
+## Synthèse — Carte de la requête `GET /`
+
+```mermaid
+flowchart TD
+    A[Navigateur : GET http://localhost/] --> B[compose.yaml : conteneur laravel.test, port 80]
+    B --> C[public/index.php]
+    C --> D[vendor/autoload.php]
+    C --> E[bootstrap/app.php]
+    E --> F[routes/web.php]
+    F --> G["closure : view('welcome')"]
+    G --> H[resources/views/welcome.blade.php]
+    H --> I[Réponse HTML au navigateur]
+    J[.env] -.lu par env() dans config/*.php.-> E
+```
+
+1. **Navigateur** : envoie `GET /` sur le port 80 de la machine.
+2. **`compose.yaml`** : le port 80 est redirigé vers le conteneur `laravel.test`, qui fait tourner PHP.
+3. **`public/index.php`** : seul fichier exposé au serveur web, c'est le point d'entrée de toutes les requêtes.
+4. **`vendor/autoload.php`** : chargé en premier, il permet de charger les classes de Laravel (autoload de Composer).
+5. **`bootstrap/app.php`** : crée l'application et déclare les routes (`web.php`, `console.php`, `/up`).
+6. **`.env`** : lu au démarrage, ses valeurs sont récupérées avec `env()` dans `config/*.php` (`APP_NAME`, `DB_*`, etc.).
+7. **`routes/web.php`** : la route `/` correspond, et sa closure retourne `view('welcome')`.
+8. **`resources/views/welcome.blade.php`** : la vue est compilée en PHP, puis rendue en HTML.
+9. **Réponse** : le HTML repart vers le navigateur.
+
+- Méthode : lecture des fichiers dans l'ordre (`public/index.php`, `bootstrap/app.php`, `routes/web.php`), en suivant chaque `require` et chaque appel.
+
 ## Palier 3
 
 **9.**
@@ -209,6 +236,15 @@
 
 ---
 
+## Bonus Séance 2
+
+- **Bonus 1, filtre `?category=`** : pas fait sur le tableau PHP de la S2, car le catalogue est passé sur la base en S3. Il est fait directement en S4 avec `->when($request->query('category'), ...)` sur Eloquent ; `@empty` affiche « Aucun jeu ne correspond à votre recherche. » pour une catégorie inconnue.
+- **Bonus 2, liens générés partout** : navbar, hero et cartes passent tous par `route('home')`, `route('wishlist')`, `route('login')` et `route('games.show', $game)`. Plus aucun `href="/..."` interne écrit en dur.
+- **Bonus 3, Tailwind et DaisyUI via Vite** : `sail npm install -D daisyui`, puis en tête de `resources/css/app.css` les lignes `@import "tailwindcss";`, les `@source` (vues Blade, vues de pagination de Laravel, vues compilées) et `@plugin "daisyui";`. Les 2 balises CDN sont supprimées du layout. `data-theme="dark"` est mis sur `<html>` pour forcer le thème sombre de DaisyUI ; sans lui, les champs du formulaire étaient blancs sur blanc pour un système en thème clair. Rendu vérifié identique sur les 5 pages.
+- **Bonus 4, lien actif** : `@class(['wishflix-shell__link', 'wishflix-shell__link--active' => request()->routeIs('home')])` dans `partials/nav.blade.php`. Le lien s'allume selon la **route courante**, sans que chaque page ait à le préciser.
+
+---
+
 # Séance 3 — Sous le capot
 
 ## C1 — Comment `Game` devine sa table
@@ -293,3 +329,71 @@
 - Vues : `{{ $game->status->label() }}` sur la fiche et sur les cartes de l'accueil.
 - Vérifié avec tinker : `get_class(Game::first()->status)` → `App\Enums\GameStatus`, et `->value` → `released`.
 - Intérêt : seules 3 valeurs sont possibles, sans faute de frappe, et l'éditeur propose l'autocomplétion.
+
+---
+
+# Séance 4 — N+1
+
+Mesure faite avec la **Debugbar** (onglet *Queries*), et vérifiée avec `DB::enableQueryLog()`. Les chiffres comptent les 3 requêtes de session.
+
+**Avant** (`Game::all()`, `$game->category->name` dans chaque carte, et `$category->games()->count()` par catégorie) :
+- **30 requêtes** sur l'accueil.
+- La requête qui se répète **20 fois** (1 par jeu) : `select * from categories where categories.id = ? limit 1`
+- S'y ajoutent **4 fois** (1 par catégorie, l'US3 de la S3) : `select count(*) as aggregate from games where games.category_id = ?`
+
+**Après** (`with('category')`, `withCount('games')`, `paginate(9)`) :
+- **13 requêtes**, et la page affiche en plus la section « Mieux notés » et le classement des catégories.
+- La catégorie n'est plus chargée jeu par jeu : une seule requête `select * from categories where categories.id in (1, 2, 3, 4)` la charge pour tous les jeux.
+- Le comptage par catégorie passe dans **une** requête, grâce à une sous-requête `(select count(*) …) as games_count`.
+- **Gain** : 30 → 13 requêtes (−17), et le nombre ne grandit plus avec le nombre de jeux.
+- En une phrase : `with('category')` remplace les N requêtes « 1 catégorie par jeu » par **une seule** requête `WHERE id IN (…)`, puis Eloquent range chaque catégorie dans le bon jeu.
+- Garde-fou : `Model::preventLazyLoading(! app()->isProduction())` dans `AppServiceProvider`. En dev, un N+1 oublié lève maintenant une exception au lieu de passer inaperçu.
+
+---
+
+# Séance 4 — Sous le capot
+
+## C1 — D'où vient `when()`
+
+**1.** Chaîne complète :
+- `Illuminate/Database/Eloquent/Builder.php` (ligne 43 : `use BuildsQueries, ...`)
+- → `Illuminate/Database/Concerns/BuildsQueries.php` (ligne 31 : `use Conditionable;`)
+- → `Illuminate/Conditionable/Traits/Conditionable.php` (namespace `Illuminate\Support\Traits`) : c'est ici que vivent `when()` et `unless()`.
+- Chemin : Ctrl+F sur `use` en haut de chaque fichier.
+
+**2.** Quand la valeur est « falsy » (`null`, `''`, `0`), on n'entre ni dans le `if` ni dans le `elseif` : `when` fait **`return $this;`**, c'est-à-dire **la requête inchangée**. Comme elle renvoie toujours le builder, la chaîne `->when(null, …)->orderByDesc(…)` continue sans erreur.
+- Chemin : `Conditionable.php` → `when`.
+
+**3.** `return $callback($this, $value) ?? $this;` : la closure reçoit **(1) la requête** (`$this`, le builder) et **(2) la valeur testée** (ex. l'id de catégorie lu dans l'URL). Si la closure ne renvoie rien (`null`), `?? $this` renvoie quand même la requête. Comme `where()` modifie le builder lui-même, le filtre est bien appliqué.
+
+**4.** Prédiction : `select * from games where featured = ?`, sans condition sur `rating` puisque la valeur est `null`.
+- `toSql()` réel : `` select * from `games` where `featured` = ? `` ✅
+- Méthode : `./vendor/bin/sail artisan tinker`.
+
+## C2 — Comment `paginate()` fabrique les pages
+
+**5.** Dans `Illuminate/Database/Eloquent/Builder.php` → `paginate` (ligne 1177) :
+- `Paginator::resolveCurrentPage($pageName)` : lit le numéro de page dans l'URL (`?page=`), ou prend `1` par défaut.
+- `$this->toBase()->getCountForPagination()` : lance un `select count(*)` pour connaître le **total** de résultats, ce qui permet de calculer le nombre de pages.
+- `$this->forPage($page, $perPage)->get()` : récupère **seulement** les lignes de la page demandée (`limit` et `offset`).
+
+**6.** `Game::paginate(5)` : **2 requêtes** :
+- `` select count(*) as `aggregate` from `games` ``
+- `` select * from `games` limit 5 offset 0 ``
+- Méthode : tinker avec `DB::enableQueryLog()` puis `DB::getQueryLog()`.
+
+**7.** `forPage` (`Illuminate/Database/Query/Builder.php`, ligne 3274) : `return $this->offset(($page - 1) * $perPage)->limit($perPage);`
+- Pour `?page=3` avec 5 par page : **`limit 5 offset 10`**, car (3 − 1) × 5 = 10.
+- Vérifié : `Game::query()->forPage(3, 5)->toSql()` → `` select * from `games` limit 5 offset 10 ``
+
+**8.** `$p = Game::paginate(5)` sur ma base (20 jeux) :
+- `total()` = **20**, `currentPage()` = **1**, `lastPage()` = **4**, `perPage()` = **5**
+- `get_class($p)` = **`Illuminate\Pagination\LengthAwarePaginator`**
+
+**9.** Résumé : le navigateur demande `/?page=2`. Dans `GameController::index`, `paginate(9)` lit le numéro de page avec `Paginator::resolveCurrentPage`, puis lance un `count(*)` pour connaître le total. `forPage(2, 9)` ajoute `limit 9 offset 9` à la requête, qui ne ramène que les 9 jeux de la page 2. Le résultat est emballé dans un `LengthAwarePaginator`, qui se parcourt comme une Collection dans le `@forelse`. Enfin, `{{ $games->links() }}` dessine les liens de pages, et grâce à `withQueryString()` ces liens gardent `search` et `category`.
+
+## Bonus Séance 4
+
+- **US3, top catégories** : `Category::withAvg('games', 'rating')->orderByDesc('games_avg_rating')->get()`. La moyenne arrive dans `games_avg_rating`, avec **une seule requête** (sous-requête `avg`, vérifiée dans la Debugbar). Elle est affichée sous le catalogue, dans « Catégories les mieux notées ».
+- **Défi 1, une « à la une » qui change** : `Game::where('featured', true)->inRandomOrder()->first()`. SQL : `order by RAND() limit 1`, donc un jeu à la une différent à chaque chargement (2 jeux sont `featured` dans le seeder).
+- **Défi 2, `simplePaginate(9)`** : ne fait **pas** de `count(*)` et n'affiche que « Précédent / Suivant ». C'est un bon choix sur les **très grandes tables**, où compter toutes les lignes coûte cher, ou pour un défilement infini. Je garde `paginate()`, parce que l'accueil affiche le nombre de résultats et les numéros de pages.
