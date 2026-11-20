@@ -107,7 +107,8 @@ resources/
 └── css/                                → app.css (Tailwind + DaisyUI) + un CSS par page
 routes/web.php                          → les URL
 tests/Feature/                          → tests du catalogue
-readme/                                 → énoncés 01 à 05, REPONSES.md et fiche de cours
+REPONSES.md                             → réponses aux questions des séances
+readme/                                 → énoncés des exercices 01 à 05 + fiche de révision du cours
 ```
 
 ---
