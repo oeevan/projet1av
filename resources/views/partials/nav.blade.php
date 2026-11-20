@@ -21,6 +21,12 @@
       <a @class(['wishflix-shell__link', 'wishflix-shell__link--active' => request()->routeIs('games.create')]) href="{{ route('games.create') }}">
         Nouveau jeu
       </a>
+      <a @class(['wishflix-shell__link', 'wishflix-shell__link--active' => request()->routeIs('categories.*')]) href="{{ route('categories.index') }}">
+        Catégories
+      </a>
+      <a @class(['wishflix-shell__link', 'wishflix-shell__link--active' => request()->routeIs('platforms.*')]) href="{{ route('platforms.index') }}">
+        Plateformes
+      </a>
     </nav>
 
     <div class="navbar-end wishflix-shell__user">
