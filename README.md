@@ -108,7 +108,7 @@ resources/
 routes/web.php                          → les URL
 tests/Feature/                          → tests du catalogue
 REPONSES.md                             → réponses aux questions des séances
-FICHE-COURS.md                          → fiche de révision du cours
+readme/                                 → énoncés des exercices 01 à 05 + fiche de révision du cours
 ```
 
 ---
@@ -133,3 +133,4 @@ Préfixe : `./vendor/bin/sail` (ou `sail` avec l'alias).
 - [x] **Séance 2** : routes nommées, contrôleur, layout Blade, Vite, 404 + bonus (Tailwind/DaisyUI via Vite, lien actif)
 - [x] **Séance 3** : Eloquent (modèles, relations, factories, seeders) + bonus (slug, enum)
 - [x] **Séance 4** : à la une, filtres, recherche, Debugbar, N+1 corrigé (30 → 13 requêtes), `withCount`, pagination + bonus (`withAvg`, `inRandomOrder`)
+- [ ] **Séance 5** : formulaires, CSRF, validation, Form Requests ([énoncé](readme/exercice-05-formulaires-validation.md))
