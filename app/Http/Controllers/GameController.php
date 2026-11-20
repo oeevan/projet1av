@@ -49,7 +49,52 @@ class GameController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
+        $data = $request->validate($this->rules());
+
+        $game = Game::create([
+            ...Arr::except($data, 'platform_ids'),
+            'slug' => $this->uniqueSlug($data['title']),
+        ]);
+        $game->platforms()->sync($data['platform_ids'] ?? []);
+
+        return redirect()->route('games.show', $game)->with('success', 'Jeu créé !');
+    }
+
+    public function edit(int $id)
+    {
+        return view('games.edit', [
+            // with('platforms') : preventLazyLoading interdit le chargement paresseux dans la vue
+            'game' => Game::with('platforms')->findOrFail($id),
+            'categories' => Category::all(),
+            'platforms' => Platform::all(),
+        ]);
+    }
+
+    public function update(Request $request, int $id)
+    {
+        $game = Game::findOrFail($id);
+        $data = $request->validate($this->rules());
+
+        // Le slug ne change pas : l'URL de la fiche reste stable
+        $game->update(Arr::except($data, 'platform_ids'));
+        $game->platforms()->sync($data['platform_ids'] ?? []);
+
+        return redirect()->route('games.show', $game)->with('success', 'Jeu modifié !');
+    }
+
+    public function destroy(int $id)
+    {
+        $game = Game::findOrFail($id);
+        $game->platforms()->detach(); // sinon la clé étrangère de game_platform bloque (erreur 500)
+        $game->delete();
+
+        return redirect()->route('home')->with('success', 'Jeu supprimé !');
+    }
+
+    // Règles communes à la création et à la modification
+    private function rules(): array
+    {
+        return [
             'title' => ['required', 'string', 'max:150'],
             'synopsis' => ['required', 'string'],
             'release_year' => ['required', 'integer', 'between:1970,2100'],
@@ -61,15 +106,7 @@ class GameController extends Controller
             'platform_ids' => ['nullable', 'array'],
             'platform_ids.*' => ['integer', 'exists:platforms,id'],
             'featured' => ['boolean'],
-        ]);
-
-        $game = Game::create([
-            ...Arr::except($data, 'platform_ids'),
-            'slug' => $this->uniqueSlug($data['title']),
-        ]);
-        $game->platforms()->sync($data['platform_ids'] ?? []);
-
-        return redirect()->route('games.show', $game)->with('success', 'Jeu créé !');
+        ];
     }
 
     // La colonne slug est unique (bonus S3) : « Zelda » puis « Zelda » → zelda, zelda-2

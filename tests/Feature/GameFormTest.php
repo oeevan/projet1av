@@ -62,4 +62,58 @@ class GameFormTest extends TestCase
 
         $this->assertEqualsCanonicalizing(['hollow-knight', 'hollow-knight-2'], Game::pluck('slug')->all());
     }
+
+    public function test_edit_form_is_prefilled(): void
+    {
+        $game = Game::factory()->create(['title' => 'Celeste']);
+
+        $this->get("/games/{$game->id}/edit")
+            ->assertOk()
+            ->assertSee('Modifier le jeu')
+            ->assertSee('value="Celeste"', false);
+    }
+
+    public function test_game_is_updated_and_keeps_its_slug(): void
+    {
+        $game = Game::factory()->create(['title' => 'Ancien', 'slug' => 'ancien']);
+
+        $this->put("/games/{$game->id}", $this->validData(['title' => 'Nouveau titre']))
+            ->assertRedirect(route('games.show', 'ancien'))
+            ->assertSessionHas('success', 'Jeu modifié !');
+
+        $this->assertSame('Nouveau titre', $game->fresh()->title);
+        $this->assertCount(2, $game->fresh()->platforms);
+    }
+
+    public function test_invalid_update_is_rejected(): void
+    {
+        $game = Game::factory()->create(['title' => 'Intact']);
+
+        $this->from("/games/{$game->id}/edit")
+            ->put("/games/{$game->id}", $this->validData(['title' => '']))
+            ->assertRedirect("/games/{$game->id}/edit")
+            ->assertSessionHasErrors('title');
+
+        $this->assertSame('Intact', $game->fresh()->title);
+    }
+
+    public function test_game_with_platforms_is_deleted(): void
+    {
+        $game = Game::factory()->create();
+        $game->platforms()->attach(Platform::create(['name' => 'PC']));
+
+        $this->delete("/games/{$game->id}")
+            ->assertRedirect(route('home'))
+            ->assertSessionHas('success', 'Jeu supprimé !');
+
+        $this->assertModelMissing($game);
+        $this->assertDatabaseCount('game_platform', 0);
+    }
+
+    public function test_unknown_game_returns_404(): void
+    {
+        $this->get('/games/999/edit')->assertNotFound();
+        $this->put('/games/999', $this->validData())->assertNotFound();
+        $this->delete('/games/999')->assertNotFound();
+    }
 }
