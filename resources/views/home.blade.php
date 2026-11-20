@@ -11,7 +11,7 @@
   @if ($featured)
     <section class="hero wishflix-hero" aria-labelledby="hero-title">
       <figure class="wishflix-hero__backdrop">
-        <img src="{{ $featured->cover_url }}" alt="Image de couverture de {{ $featured->title }}" width="1600" height="900" />
+        <img src="{{ $featured->cover_src }}" alt="Image de couverture de {{ $featured->title }}" width="1600" height="900" />
       </figure>
       <div class="wishflix-hero__veil" aria-hidden="true"></div>
 

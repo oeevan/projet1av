@@ -12,7 +12,7 @@
     <div class="card-body">
       <h1 class="card-title">Nouveau jeu</h1>
 
-      <form method="POST" action="{{ route('games.store') }}">
+      <form method="POST" enctype="multipart/form-data" action="{{ route('games.store') }}">
         @csrf
 
         @include('games.fields', ['game' => null])

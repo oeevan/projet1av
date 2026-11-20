@@ -10,7 +10,7 @@
         <section class="wish-detail">
           <figure class="wish-detail__backdrop">
             <img
-              src="{{ $game->cover_url }}"
+              src="{{ $game->cover_src }}"
               alt="Image de couverture de {{ $game->title }}"
               width="1600"
               height="900"

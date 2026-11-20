@@ -27,7 +27,6 @@ class GameSeeder extends Seeder
                 'release_year' => 2015,
                 'rating' => 4.8,
                 'playtime_hours' => 100,
-                'featured' => true,
                 'category' => 'RPG',
                 'platforms' => ['PC', 'PS5', 'Xbox'],
             ],
@@ -97,7 +96,7 @@ class GameSeeder extends Seeder
             );
         }
 
-        // Partie B (US1) : ~14 jeux de plus via la factory, dont 1 « à la une »
+        // Partie B (US1) : ~14 jeux de plus via la factory, dont LE jeu « à la une » (un seul, bonus 1 S5)
         $allPlatforms = Platform::all();
 
         Game::factory()->count(13)

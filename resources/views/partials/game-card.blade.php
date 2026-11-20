@@ -1,6 +1,6 @@
 <article class="card movie-card game-card" aria-label="Jeu {{ $game->title }}">
   <figure class="game-card__cover">
-    <img src="{{ $game->cover_url }}" alt="Affiche de {{ $game->title }}" width="300" height="450" loading="lazy" />
+    <img src="{{ $game->cover_src }}" alt="Affiche de {{ $game->title }}" width="300" height="450" loading="lazy" />
   </figure>
 
   <div class="card-body game-card__body">

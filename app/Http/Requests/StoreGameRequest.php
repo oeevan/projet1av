@@ -31,7 +31,9 @@ class StoreGameRequest extends FormRequest
             'release_year' => ['required', 'integer', 'between:1970,2100'],
             'rating' => ['required', 'numeric', 'between:0,10'],
             'playtime_hours' => ['required', 'integer', 'min:0'],
-            'cover_url' => ['required', 'url'],
+            // Une jaquette : soit une URL, soit un fichier image (bonus 3)
+            'cover_url' => ['nullable', 'required_without:cover', 'url'],
+            'cover' => ['nullable', 'image', 'max:2048'],
             'status' => ['required', Rule::enum(GameStatus::class)],
             'category_id' => ['required', 'exists:categories,id'],
             'platform_ids' => ['nullable', 'array'],

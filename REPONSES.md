@@ -395,5 +395,5 @@ Mesure faite avec la **Debugbar** (onglet *Queries*), et vérifiée avec `DB::en
 ## Bonus Séance 4
 
 - **US3, top catégories** : `Category::withAvg('games', 'rating')->orderByDesc('games_avg_rating')->get()`. La moyenne arrive dans `games_avg_rating`, avec **une seule requête** (sous-requête `avg`, vérifiée dans la Debugbar). Elle est affichée sous le catalogue, dans « Catégories les mieux notées ».
-- **Défi 1, une « à la une » qui change** : `Game::where('featured', true)->inRandomOrder()->first()`. SQL : `order by RAND() limit 1`, donc un jeu à la une différent à chaque chargement (2 jeux sont `featured` dans le seeder).
+- **Défi 1, une « à la une » qui change** : `Game::where('featured', true)->inRandomOrder()->first()`. SQL : `order by RAND() limit 1`, donc un jeu à la une différent à chaque chargement quand plusieurs jeux sont `featured`. Depuis le bonus 1 de la S5, un seul jeu peut être à la une : le tirage n'a donc plus d'effet visible, mais la requête reste correcte.
 - **Défi 2, `simplePaginate(9)`** : ne fait **pas** de `count(*)` et n'affiche que « Précédent / Suivant ». C'est un bon choix sur les **très grandes tables**, où compter toutes les lignes coûte cher, ou pour un défilement infini. Je garde `paginate()`, parce que l'accueil affiche le nombre de résultats et les numéros de pages.

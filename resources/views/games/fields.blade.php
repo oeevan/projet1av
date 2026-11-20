@@ -36,6 +36,15 @@
 </fieldset>
 
 <fieldset class="fieldset">
+  <legend class="fieldset-legend">… ou fichier image (2 Mo max)</legend>
+  <input type="file" name="cover" accept="image/*" class="file-input w-full" />
+  @if ($game?->cover_path)
+    <p class="text-sm opacity-70">Jaquette actuelle : <a class="link" href="{{ $game->cover_src }}" target="_blank">voir l'image</a></p>
+  @endif
+  @error('cover') <p class="text-error text-sm">{{ $message }}</p> @enderror
+</fieldset>
+
+<fieldset class="fieldset">
   <legend class="fieldset-legend">Statut</legend>
   <select name="status" class="select w-full">
     <option value="released" @selected(old('status', $game?->status->value) == 'released')>Sorti</option>

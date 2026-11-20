@@ -7,12 +7,14 @@ use App\Http\Requests\UpdateGameRequest;
 use App\Models\Category;
 use App\Models\Game;
 use App\Models\Platform;
+use App\Services\GameService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
 
 class GameController extends Controller
 {
+    // GameService est injecté par le conteneur de Laravel : jamais de new
+    public function __construct(private GameService $games) {}
+
     public function index(Request $request)
     {
         // Catalogue : filtres optionnels (when), eager loading (with), pagination
@@ -49,13 +51,7 @@ class GameController extends Controller
 
     public function store(StoreGameRequest $request)
     {
-        $data = $request->validated();
-
-        $game = Game::create([
-            ...Arr::except($data, 'platform_ids'),
-            'slug' => $this->uniqueSlug($data['title']),
-        ]);
-        $game->platforms()->sync($data['platform_ids'] ?? []);
+        $game = $this->games->create($request->validated());
 
         return redirect()->route('games.show', $game)->with('success', 'Jeu créé !');
     }
@@ -72,33 +68,15 @@ class GameController extends Controller
 
     public function update(UpdateGameRequest $request, Game $game)
     {
-        $data = $request->validated();
-
-        // Le slug ne change pas : l'URL de la fiche reste stable
-        $game->update(Arr::except($data, 'platform_ids'));
-        $game->platforms()->sync($data['platform_ids'] ?? []);
+        $this->games->update($game, $request->validated());
 
         return redirect()->route('games.show', $game)->with('success', 'Jeu modifié !');
     }
 
     public function destroy(Game $game)
     {
-        $game->platforms()->detach(); // sinon la clé étrangère de game_platform bloque (erreur 500)
-        $game->delete();
+        $this->games->delete($game);
 
         return redirect()->route('home')->with('success', 'Jeu supprimé !');
-    }
-
-    // La colonne slug est unique (bonus S3) : « Zelda » puis « Zelda » → zelda, zelda-2
-    private function uniqueSlug(string $title): string
-    {
-        $base = Str::slug($title);
-        $slug = $base;
-
-        for ($i = 2; Game::where('slug', $slug)->exists(); $i++) {
-            $slug = "{$base}-{$i}";
-        }
-
-        return $slug;
     }
 }
