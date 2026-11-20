@@ -12,6 +12,14 @@
       @include('partials.nav')
 
       <main class="wishflix-main" id="contenu-principal">
+        {{-- Messages flash : affichés une seule fois, après une redirection --}}
+        @if (session('success'))
+          <div role="alert" class="alert alert-success my-4">{{ session('success') }}</div>
+        @endif
+        @if (session('error'))
+          <div role="alert" class="alert alert-error my-4">{{ session('error') }}</div>
+        @endif
+
         @yield('content')
       </main>
 

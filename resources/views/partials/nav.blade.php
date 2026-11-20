@@ -18,6 +18,9 @@
         Wishlist
         <span class="badge badge-secondary badge-sm">3</span>
       </a>
+      <a @class(['wishflix-shell__link', 'wishflix-shell__link--active' => request()->routeIs('games.create')]) href="{{ route('games.create') }}">
+        Nouveau jeu
+      </a>
     </nav>
 
     <div class="navbar-end wishflix-shell__user">

@@ -8,6 +8,9 @@ Route::get('/', [GameController::class, 'index'])->name('home');
 Route::get('/game/{game:slug}', [GameController::class, 'show'])
     ->name('games.show');
 
+Route::get('/games/create', [GameController::class, 'create'])->name('games.create');
+Route::post('/games', [GameController::class, 'store'])->name('games.store');
+
 Route::get('/wishlist', function () {
     return view('wishlist');
 })->name('wishlist');
