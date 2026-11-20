@@ -54,6 +54,7 @@ docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd):/app" -w /app composer:2 sh -c
 - 🔎 **Recherche** par titre + **filtre** par catégorie (avec le nombre de jeux), combinables, conservés d'une page à l'autre
 - 🏆 Catégories classées par **note moyenne**
 - 📄 **Fiche jeu** sur une URL lisible (`/game/the-witcher-3`) : catégorie, plateformes, statut
+- 🛠️ **Back-office** : créer, modifier, supprimer un jeu (formulaire validé, jaquette par URL ou fichier) ; gérer catégories et plateformes
 - ❤️ **Wishlist** et 🔐 **Connexion** (pages statiques pour l'instant)
 - 🚫 **Page 404** aux couleurs de WishFlix
 - 🐞 **Debugbar** en bas de page (en dev) pour voir les requêtes SQL
@@ -69,6 +70,8 @@ docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd):/app" -w /app composer:2 sh -c
 | `/game/{slug}` | Fiche d'un jeu (ex. `/game/elden-ring`) |
 | `/wishlist` | Ma wishlist |
 | `/login` | Connexion |
+| `/games/create`, `/games/{id}/edit` | Créer / modifier un jeu |
+| `/categories`, `/platforms` | Gérer catégories et plateformes |
 | `/n-importe-quoi` | Page 404 |
 
 ---
@@ -95,9 +98,11 @@ Statut d'un jeu : enum `GameStatus` (`Released`, `Upcoming`, `EarlyAccess`).
 ```
 app/
 ├── Enums/GameStatus.php                → les statuts possibles
-├── Http/Controllers/GameController.php → requêtes du catalogue et de la fiche
+├── Http/Controllers/                   → Game (catalogue, fiche, CRUD), Category, Platform
+├── Http/Requests/                      → validation des formulaires (Form Requests)
 ├── Models/                             → Game, Category, Platform
-└── Providers/AppServiceProvider.php    → preventLazyLoading (alerte N+1)
+├── Providers/AppServiceProvider.php    → preventLazyLoading (alerte N+1)
+└── Services/GameService.php            → règles métier des jeux (slug, jaquette, à la une)
 database/
 ├── migrations/                         → structure des tables
 ├── factories/                          → fausses données (fake())
@@ -133,4 +138,4 @@ Préfixe : `./vendor/bin/sail` (ou `sail` avec l'alias).
 - [x] **Séance 2** : routes nommées, contrôleur, layout Blade, Vite, 404 + bonus (Tailwind/DaisyUI via Vite, lien actif)
 - [x] **Séance 3** : Eloquent (modèles, relations, factories, seeders) + bonus (slug, enum)
 - [x] **Séance 4** : à la une, filtres, recherche, Debugbar, N+1 corrigé (30 → 13 requêtes), `withCount`, pagination + bonus (`withAvg`, `inRandomOrder`)
-- [ ] **Séance 5** : formulaires, CSRF, validation, Form Requests ([énoncé](readme/exercice-05-formulaires-validation.md))
+- [x] **Séance 5** : CRUD des jeux (CSRF, validation, `Route::resource`, Form Requests), CRUD catégories/plateformes + bonus (à la une unique, `GameService`, upload de jaquette)

@@ -397,3 +397,64 @@ Mesure faite avec la **Debugbar** (onglet *Queries*), et vérifiée avec `DB::en
 - **US3, top catégories** : `Category::withAvg('games', 'rating')->orderByDesc('games_avg_rating')->get()`. La moyenne arrive dans `games_avg_rating`, avec **une seule requête** (sous-requête `avg`, vérifiée dans la Debugbar). Elle est affichée sous le catalogue, dans « Catégories les mieux notées ».
 - **Défi 1, une « à la une » qui change** : `Game::where('featured', true)->inRandomOrder()->first()`. SQL : `order by RAND() limit 1`, donc un jeu à la une différent à chaque chargement quand plusieurs jeux sont `featured`. Depuis le bonus 1 de la S5, un seul jeu peut être à la une : le tirage n'a donc plus d'effet visible, mais la requête reste correcte.
 - **Défi 2, `simplePaginate(9)`** : ne fait **pas** de `count(*)` et n'affiche que « Précédent / Suivant ». C'est un bon choix sur les **très grandes tables**, où compter toutes les lignes coûte cher, ou pour un défilement infini. Je garde `paginate()`, parce que l'accueil affiche le nombre de résultats et les numéros de pages.
+
+---
+
+# Séance 5 — Sous le capot
+
+> Projet en **Laravel 13** : le middleware CSRF a changé de nom par rapport à l'énoncé (Laravel 12). `ValidateCsrfToken` est maintenant une classe vide, marquée `@deprecated`, qui hérite de **`PreventRequestForgery`**. C'est là que se trouve le code.
+
+## C1 — Qui refuse la requête sans jeton ?
+
+**Chemin** : `Illuminate/Foundation/Http/Middleware/ValidateCsrfToken.php` (classe vide, `extends PreventRequestForgery`) → `Illuminate/Foundation/Http/Middleware/PreventRequestForgery.php` → `handle`, `isReading`, `hasValidOrigin`, `tokensMatch`, `getTokenFromRequest`.
+
+- **Conditions qui laissent passer** : `handle()` laisse passer la requête si **une seule** de ces conditions est vraie (des `||`) :
+  1. `isReading()` : la méthode est `GET`, `HEAD` ou `OPTIONS`.
+  2. `runningUnitTests()` : on est dans les tests automatiques.
+  3. `inExceptArray()` : l'URL est exclue de la vérification.
+  4. `hasValidOrigin()` : **nouveau en Laravel 13**. L'en-tête `Sec-Fetch-Site` vaut `same-origin`, c'est-à-dire que le navigateur certifie que le formulaire vient du même site.
+  5. `tokensMatch()` : le jeton envoyé est identique à celui de la session.
+- Sinon : `throw new TokenMismatchException('CSRF token mismatch.')`, que le `Handler` transforme en **`HttpException(419)`** (`Foundation/Exceptions/Handler.php`, ligne 779). C'est la page « 419 Page Expired ».
+- **Pourquoi un GET n'est jamais vérifié** : `isReading()` renvoie vrai pour GET, HEAD et OPTIONS. Ces méthodes sont censées seulement **lire**, sans rien modifier. Une attaque CSRF n'a donc rien à y gagner, et c'est pour ça qu'on n'utilise jamais de lien GET pour supprimer.
+- **D'où vient le jeton comparé** : `tokensMatch()` compare avec `hash_equals()` le jeton **de la session** (`$request->session()->token()`) à celui de la requête. `getTokenFromRequest()` cherche ce dernier dans le champ `_token` (écrit par `@csrf`), sinon dans l'en-tête `X-CSRF-TOKEN`, sinon dans l'en-tête `X-XSRF-TOKEN` (cookie chiffré, utilisé par JavaScript).
+- **Constaté en vrai** (curl, POST `/games` **sans** jeton) :
+  - sans en-tête → **419**
+  - `Sec-Fetch-Site: cross-site` → **419**
+  - `Sec-Fetch-Site: same-origin` → **302**, la requête passe la protection et arrive à la validation.
+- C'est pour ça qu'à l'étape A2, après avoir retiré `@csrf`, l'envoi depuis Chrome marchait quand même : Chrome envoie `Sec-Fetch-Site: same-origin`. Laravel 13 protège donc par l'**origine** en plus du jeton. On voit le 419 avec un client qui n'envoie pas cet en-tête (curl, ancien navigateur).
+
+## C2 — Comment `_method=PUT` devient un PUT ?
+
+**Chemin** : `vendor/symfony/http-foundation/Request.php` → `getMethod`, `enableHttpMethodParameterOverride` ; activé par `Illuminate/Foundation/Http/Kernel.php` → `handle` (ligne 142 : `$request->enableHttpMethodParameterOverride();`).
+
+- **Condition** : `_method` n'est lu que si :
+  1. la **vraie** méthode est **`POST`** : `if ('POST' !== $this->method ...) return $this->method;`
+  2. **et** l'override par paramètre est activé : `self::$httpMethodParameterOverride`, mis à `true` par le Kernel de Laravel à chaque requête.
+- La valeur est d'abord cherchée dans l'en-tête `X-HTTP-METHOD-OVERRIDE`, puis dans le champ `_method` (corps, puis query string). Elle est passée en majuscules.
+- Elle est **refusée** si elle vaut `GET`, `HEAD`, `CONNECT` ou `TRACE`. Si elle contient autre chose que des lettres, une `SuspiciousOperationException` est levée.
+- `@method('PUT')` écrit `<input type="hidden" name="_method" value="PUT">` : le formulaire part en POST, et Laravel le traite comme un PUT.
+- **Un GET avec `_method=DELETE`** : il est **ignoré**, car la vraie méthode n'est pas POST, et la requête reste un GET. On ne peut donc pas supprimer un jeu avec un simple lien. Vérifié : `GET /games/1?_method=DELETE` → **405 Method Not Allowed** (aucune route GET sur `/games/{game}`) : rien n'est supprimé.
+
+## C3 — Comment `{game}` devient un `Game` ?
+
+**Chemin** : `Illuminate/Routing/ImplicitRouteBinding.php` → `resolveForRoute` (appelé par le middleware `SubstituteBindings`) ; `Illuminate/Database/Eloquent/Model.php` → `resolveRouteBinding`, `resolveRouteBindingQuery`, `getRouteKeyName`.
+
+- **Comment Laravel sait que c'est un modèle** : `resolveForRoute` parcourt les paramètres de **la signature de la méthode** du contrôleur : `$route->signatureParameters(['subClass' => UrlRoutable::class])`. Il garde ceux dont le **type** implémente `UrlRoutable`, ce qui est le cas de `Model`. `edit(Game $game)` est donc reconnu grâce au type `Game`, et le nom `$game` doit correspondre à `{game}` (`getParameterName`).
+- Il crée une instance vide (`$container->make(Game::class)`) et appelle **`resolveRouteBinding($valeur, $champ)`**.
+- **Méthode qui charge l'enregistrement** : `Model::resolveRouteBinding()` → `resolveRouteBindingQuery($this, $value, $field)->first()`, c'est-à-dire `where($field ?? $this->getRouteKeyName(), $value)->first()`. `getRouteKeyName()` vaut `id` par défaut. Avec `{game:slug}` (la fiche), `$field` vaut `slug`.
+- **La 404** : si `first()` renvoie `null`, `resolveForRoute` fait `throw (new ModelNotFoundException)->setModel(...)`. Le `Handler` la transforme en **`NotFoundHttpException`** (`Foundation/Exceptions/Handler.php`, ligne 773 : `$e instanceof ModelNotFoundException => new NotFoundHttpException(...)`), donc en 404 avec notre page `errors/404`. Vérifié : `/games/999/edit` → **404**.
+- Sinon, `$route->setParameter($parameterName, $model)` remplace l'id par le modèle chargé, et le contrôleur reçoit directement `Game $game`, sans `findOrFail`.
+
+## Partie B et bonus Séance 5
+
+- **US1, CRUD des catégories** : `Route::resource('categories', ...)->except(['show'])`, avec `StoreCategoryRequest` (`required|string|max:50|unique:categories,name`) et `UpdateCategoryRequest` (`Rule::unique('categories', 'name')->ignore($this->route('category'))`, pour qu'une catégorie puisse garder son propre nom). Une catégorie qui contient des jeux n'est pas supprimée (`$category->games()->exists()`) : retour à la liste avec un message `error`.
+- **US2, CRUD des plateformes** : mêmes principes ; `games()->detach()` avant `delete()`, sinon la clé étrangère de `game_platform` bloque.
+- **Bonus 1, jeu à la une unique** : dans `GameService::save()`, si le jeu est `featured`, `Game::whereKeyNot($game->id)->where('featured', true)->update(['featured' => false])`. S'applique à la création et à l'édition, dans une transaction.
+- **Bonus 2, `GameService`** : `app/Services/GameService.php` avec `create()`, `update()` et `delete()` (slug unique, plateformes, jaquette, règle « à la une »). Il est injecté dans le constructeur : `public function __construct(private GameService $games) {}`. Le conteneur l'instancie, sans `new`. `store()` et `update()` ne font plus qu'un appel au service puis la redirection.
+- **Bonus 3, upload de la jaquette** :
+  - champ `cover` dans un formulaire `enctype="multipart/form-data"`, validé par `image|max:2048`
+  - stocké avec `->store('covers', 'public')` dans une nouvelle colonne `cover_path` ; `cover_url` devient facultative (`required_without:cover`)
+  - l'accesseur `cover_src` affiche le fichier en priorité, sinon l'URL
+  - `storage:link` est ajouté à `composer setup`
+  - l'ancien fichier est supprimé quand on le remplace, ou quand on supprime le jeu
+- **Choix** : les champs du formulaire sont dans `games/fields.blade.php`, partagé par `create` et `edit` au lieu d'être dupliqué. `UpdateGameRequest` hérite de `StoreGameRequest` pour ne pas recopier les règles.
