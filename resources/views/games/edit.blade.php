@@ -12,7 +12,7 @@
     <div class="card-body">
       <h1 class="card-title">Modifier le jeu</h1>
 
-      <form method="POST" action="{{ route('games.update', $game->id) }}">
+      <form method="POST" action="{{ route('games.update', $game) }}">
         @csrf
         @method('PUT')
 

@@ -63,8 +63,8 @@
               <a class="btn btn-outline" href="{{ route('wishlist') }}"
                 >Voir ma wishlist</a
               >
-              <a class="btn btn-outline" href="{{ route('games.edit', $game->id) }}">Modifier</a>
-              <form method="POST" action="{{ route('games.destroy', $game->id) }}" onsubmit="return confirm('Supprimer ce jeu ?')">
+              <a class="btn btn-outline" href="{{ route('games.edit', $game) }}">Modifier</a>
+              <form method="POST" action="{{ route('games.destroy', $game) }}" onsubmit="return confirm('Supprimer ce jeu ?')">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="btn btn-error">Supprimer</button>

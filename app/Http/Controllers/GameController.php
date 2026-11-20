@@ -60,19 +60,18 @@ class GameController extends Controller
         return redirect()->route('games.show', $game)->with('success', 'Jeu créé !');
     }
 
-    public function edit(int $id)
+    public function edit(Game $game)
     {
         return view('games.edit', [
-            // with('platforms') : preventLazyLoading interdit le chargement paresseux dans la vue
-            'game' => Game::with('platforms')->findOrFail($id),
+            // load('platforms') : preventLazyLoading interdit le chargement paresseux dans la vue
+            'game' => $game->load('platforms'),
             'categories' => Category::all(),
             'platforms' => Platform::all(),
         ]);
     }
 
-    public function update(Request $request, int $id)
+    public function update(Request $request, Game $game)
     {
-        $game = Game::findOrFail($id);
         $data = $request->validate($this->rules());
 
         // Le slug ne change pas : l'URL de la fiche reste stable
@@ -82,9 +81,8 @@ class GameController extends Controller
         return redirect()->route('games.show', $game)->with('success', 'Jeu modifié !');
     }
 
-    public function destroy(int $id)
+    public function destroy(Game $game)
     {
-        $game = Game::findOrFail($id);
         $game->platforms()->detach(); // sinon la clé étrangère de game_platform bloque (erreur 500)
         $game->delete();
 

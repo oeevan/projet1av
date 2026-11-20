@@ -8,11 +8,8 @@ Route::get('/', [GameController::class, 'index'])->name('home');
 Route::get('/game/{game:slug}', [GameController::class, 'show'])
     ->name('games.show');
 
-Route::get('/games/create', [GameController::class, 'create'])->name('games.create');
-Route::post('/games', [GameController::class, 'store'])->name('games.store');
-Route::get('/games/{id}/edit', [GameController::class, 'edit'])->name('games.edit');
-Route::put('/games/{id}', [GameController::class, 'update'])->name('games.update');
-Route::delete('/games/{id}', [GameController::class, 'destroy'])->name('games.destroy');
+// Back-office : create, store, edit, update, destroy (games.show existe déjà, par slug)
+Route::resource('games', GameController::class)->except(['index', 'show']);
 
 Route::get('/wishlist', function () {
     return view('wishlist');
