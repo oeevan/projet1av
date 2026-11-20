@@ -1,4 +1,4 @@
-# Fiche cours — Laravel (S1 → S4)
+# Fiche cours — Laravel (S1 → S5)
 
 ## S1 — Introduction, Docker et architecture
 
@@ -224,7 +224,76 @@ Category::withSum('quests', 'xp')->orderByDesc('quests_sum_xp')->get();
 - **whereHas** — filtre par relation (`EXISTS`) ; `with` charge, ne filtre pas.
 - **groupBy / having** — agrégat par groupe ; `having` = `where` des groupes.
 
-À venir — S5 : formulaires, CSRF, validation, Form Request, CRUD.
+## S5 — Formulaires, validation et services
+
+### 01 · Le formulaire de création
+- **GET / POST** — GET lit (URL, favori) ; POST modifie (corps de requête).
+- **Deux routes** — `GET /quests/create` affiche, `POST /quests` traite.
+- **name** — clé de la saisie côté serveur ; absent = champ jamais reçu.
+- **name="location_ids[]"** — tableau de valeurs ; case décochée n'envoie rien.
+- **Piège** — `view()` après POST : F5 renvoie le formulaire, doublon ; rediriger (PRG).
+- **with('success', ...)** — donnée flash : lue par `session('success')`, une seule requête.
+- **Piège** — `create()` exige `$fillable` (S3) ; `/quests/create` protégée par `whereNumber('id')`.
+
+### 02 · Le jeton CSRF
+- **CSRF** — site tiers fait envoyer par votre navigateur une requête authentifiée.
+- **@csrf** — champ caché `_token`, jeton aléatoire propre à la session.
+- **ValidateCsrfToken** — middleware actif par défaut ; compare `_token` au jeton de session.
+- **Règle** — tout formulaire POST contient `@csrf` ; GET non vérifié.
+- **Piège** — 419 Page Expired : `@csrf` oublié sous la balise `<form>`.
+
+### 03 · La validation
+- **$request->validate([...])** — règles par champ ; renvoie uniquement les données validées.
+- **Règles** — `required`, `string`, `integer`, `min`/`max`, `in`, `exists:table,col`, `unique`.
+- **Échec** — `ValidationException` → 302 vers le formulaire, erreurs et saisie flashées.
+- **old('title')** — saisie ratée ; `<textarea>` entre balises, sinon `@selected` / `@checked`.
+- **@error('title')** — affiche `$message` seulement si ce champ a échoué.
+- **Piège** — case décochée : champ caché `featured=0` avant la case.
+- **Piège** — `required` HTML contournable ; seule la validation serveur protège la base.
+```blade
+<input name="title" value="{{ old('title') }}">
+@error('title') <p class="error">{{ $message }}</p> @enderror
+```
+
+### 04 · Éditer et supprimer
+- **Routes** — `GET /quests/{id}/edit`, `PUT /quests/{id}`, `DELETE /quests/{id}`.
+- **Method spoofing** — `@method('PUT')` → champ caché `_method` dans un POST.
+- **old('title', $quest->title)** — saisie ratée, sinon valeur actuelle.
+- **Supprimer** — formulaire POST + `@csrf` + `@method('DELETE')`, jamais un lien GET.
+- **Piège** — `<form method="PUT">` part en GET : HTML ne connaît que GET/POST.
+- **Piège** — `delete()` sans `locations()->detach()` → 500, clé étrangère du pivot.
+```blade
+<form method="POST" action="{{ route('quests.update', $quest) }}">
+    @csrf
+    @method('PUT')
+```
+
+### 05 · Route::resource et route model binding
+- **Route::resource** — sept routes nommées : index, create, store, show, edit, update, destroy.
+- **only / except** — ne générer qu'une partie des sept routes.
+- **Route model binding** — `{quest}` + `Quest $quest` : modèle chargé, 404 si absent.
+- **--resource --model=Quest** — génère les sept méthodes vides, signatures typées.
+- **Piège** — `{quest}` ≠ `$quete` : pas de binding, `Quest` vide sans erreur.
+```php
+Route::resource('quests', QuestController::class)->where(['quest' => '[0-9]+']);
+```
+
+### 06 · Les Form Requests
+- **Form Request** — classe : autorisation + règles + messages, injectée à la place de `Request`.
+- **authorize()** — `true` pour l'instant ; `false` → 403 ; vraie autorisation en S6.
+- **rules() / messages()** — règles du chapitre 03 déplacées, messages `champ.règle`.
+- **$request->validated()** — données validées ; échec = `store()` jamais exécutée.
+- **Store / Update** — une classe par formulaire, règles ajustables séparément.
+```bash
+sail artisan make:request StoreQuestRequest
+```
+
+### Annexe · Les services
+- **Service** — classe de règles métier, hors contrôleur, sans `Request` ni `redirect`.
+- **app/Services/** — créé à la main, pas de `make:service`.
+- **Injection** — `__construct(private QuestService $quests)` ; le conteneur instancie, jamais `new`.
+- **Contrôleur fin** — HTTP en entrée → service travaille → HTTP en sortie.
+- **Piège** — surdimensionné pour un CRUD sans règle métier.
 
 ## Commandes à connaître
 
@@ -245,6 +314,10 @@ Category::withSum('quests', 'xp')->orderByDesc('quests_sum_xp')->get();
 | `sail artisan db:seed --class=X` | Lancer un seeder |
 | `sail npm run dev` / `run build` | Serveur Vite / compilation des assets |
 | `sail composer require pkg --dev` | Installer un paquet en dépendance de dev |
+| `sail artisan make:request X` | Générer une Form Request (`app/Http/Requests/`) |
+| `sail artisan make:controller X --resource --model=Y` | Contrôleur aux sept méthodes CRUD |
+| `sail artisan route:list --name=quests` | Lister les routes d'une ressource |
+| `sail artisan lang:publish` | Publier les fichiers de traduction |
 
 ## Lexique express
 
@@ -263,3 +336,9 @@ Category::withSum('quests', 'xp')->orderByDesc('quests_sum_xp')->get();
 - **Seeder / Factory** — données de départ / fausses données plausibles.
 - **N+1** — une requête pour la liste, plus une par ligne.
 - **Eager loading** — relations chargées à l'avance, une requête par relation.
+- **CSRF** — attaque : requête authentifiée envoyée à l'insu de l'utilisateur.
+- **Validation rule** — contrainte qu'une donnée doit satisfaire pour être acceptée.
+- **Flash data** — donnée de session qui ne survit qu'à la requête suivante.
+- **Post/Redirect/Get** — répondre à un POST par une redirection vers un GET.
+- **Method spoofing** — champ caché `_method` simulant PUT, PATCH ou DELETE.
+- **Resource controller** — contrôleur aux sept actions CRUD conventionnelles.
