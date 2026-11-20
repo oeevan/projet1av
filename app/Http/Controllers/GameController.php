@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\GameStatus;
+use App\Http\Requests\StoreGameRequest;
+use App\Http\Requests\UpdateGameRequest;
 use App\Models\Category;
 use App\Models\Game;
 use App\Models\Platform;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class GameController extends Controller
 {
@@ -47,9 +47,9 @@ class GameController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreGameRequest $request)
     {
-        $data = $request->validate($this->rules());
+        $data = $request->validated();
 
         $game = Game::create([
             ...Arr::except($data, 'platform_ids'),
@@ -70,9 +70,9 @@ class GameController extends Controller
         ]);
     }
 
-    public function update(Request $request, Game $game)
+    public function update(UpdateGameRequest $request, Game $game)
     {
-        $data = $request->validate($this->rules());
+        $data = $request->validated();
 
         // Le slug ne change pas : l'URL de la fiche reste stable
         $game->update(Arr::except($data, 'platform_ids'));
@@ -87,24 +87,6 @@ class GameController extends Controller
         $game->delete();
 
         return redirect()->route('home')->with('success', 'Jeu supprimé !');
-    }
-
-    // Règles communes à la création et à la modification
-    private function rules(): array
-    {
-        return [
-            'title' => ['required', 'string', 'max:150'],
-            'synopsis' => ['required', 'string'],
-            'release_year' => ['required', 'integer', 'between:1970,2100'],
-            'rating' => ['required', 'numeric', 'between:0,10'],
-            'playtime_hours' => ['required', 'integer', 'min:0'],
-            'cover_url' => ['required', 'url'],
-            'status' => ['required', Rule::enum(GameStatus::class)],
-            'category_id' => ['required', 'exists:categories,id'],
-            'platform_ids' => ['nullable', 'array'],
-            'platform_ids.*' => ['integer', 'exists:platforms,id'],
-            'featured' => ['boolean'],
-        ];
     }
 
     // La colonne slug est unique (bonus S3) : « Zelda » puis « Zelda » → zelda, zelda-2
